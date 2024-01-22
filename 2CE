@@ -1,31 +1,46 @@
-import csv
-a = []
-with open('ES.csv', 'r') as csvfile:
-    next(csvfile)
-    for row in csv.reader(csvfile):
-        a.append(row)
-    print(a)
+import numpy as np
+import pandas as pd
 
-print("\nThe total number of training instances are : ",len(a))
+data = pd.read_csv("ES.csv")
+concepts = np.array(data.iloc[:,0:-1])
+print("\nInstances are:\n",concepts)
+target = np.array(data.iloc[:,-1])
+print("\nTarget Values are: ",target)
 
-num_attribute = len(a[0])-1
+def learn(concepts, target):
+    specific_h = concepts[0].copy()
+    print("\nInitialization of specific_h and genearal_h")
+    print("\nSpecific Boundary: ", specific_h)
+    general_h = [["?" for i in range(len(specific_h))] for i in range(len(specific_h))]
+    print("\nGeneric Boundary: ",general_h)
 
-print("\nThe initial hypothesis is : ")
-hypothesis = ['0']*num_attribute
-print(hypothesis)
+    for i, h in enumerate(concepts):
+        print("\nInstance", i+1 , "is ", h)
+        if target[i] == "yes":
+            print("Instance is Positive ")
+            for x in range(len(specific_h)):
+                if h[x]!= specific_h[x]:
+                    specific_h[x] ='?'
+                    general_h[x][x] ='?'
 
-for i in range(0, len(a)):
-    if a[i][num_attribute] == 'yes':
-        print ("\nInstance ", i+1, "is", a[i], " and is Positive Instance")
-        for j in range(0, num_attribute):
-            if hypothesis[j] == '0' or hypothesis[j] == a[i][j]:
-                hypothesis[j] = a[i][j]
-            else:
-                hypothesis[j] = '?'
-        print("The hypothesis for the training instance", i+1, " is: " , hypothesis, "\n")
+        if target[i] == "no":
+            print("Instance is Negative ")
+            for x in range(len(specific_h)):
+                if h[x]!= specific_h[x]:
+                    general_h[x][x] = specific_h[x]
+                else:
+                    general_h[x][x] = '?'
 
-    if a[i][num_attribute] == 'no':
-        print ("\nInstance ", i+1, "is", a[i], " and is Negative Instance Hence Ignored")
-        print("The hypothesis for the training instance", i+1, " is: " , hypothesis, "\n")
+        print("Specific Bundary after ", i+1, "Instance is ", specific_h)
+        print("Generic Boundary after ", i+1, "Instance is ", general_h)
+        print("\n")
 
-print("\nThe Maximally specific hypothesis for the training instance is ", hypothesis)
+    indices = [i for i, val in enumerate(general_h) if val == ['?', '?', '?', '?', '?', '?']]
+    for i in indices:
+        general_h.remove(['?', '?', '?', '?', '?', '?'])
+    return specific_h, general_h
+
+s_final, g_final = learn(concepts, target)
+
+print("Final Specific_h: ", s_final, sep="\n")
+print("Final General_h: ", g_final, sep="\n")
