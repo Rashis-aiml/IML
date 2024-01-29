@@ -1,70 +1,65 @@
 import numpy as np
-from scipy.stats import multivariate_normal
-
-def initialize_parameters(data, num_clusters):
-    num_samples, num_features = data.shape
-    means = data[np.random.choice(num_samples, num_clusters, replace=False)]
-    covariances = [np.eye(num_features) for _ in range(num_clusters)]
-    weights = np.ones(num_clusters) / num_clusters
-    
-    return means, covariances, weights
-
-def expectation_step(data, means, covariances, weights):
-    num_clusters = len(means)
-    num_samples = data.shape[0]
-    responsibilities = np.zeros((num_samples, num_clusters))
-
-    for k in range(num_clusters):
-        mvn = multivariate_normal(mean=means[k], cov=covariances[k])
-        responsibilities[:, k] = weights[k] * mvn.pdf(data)
-
-    responsibilities /= responsibilities.sum(axis=1, keepdims=True)
-
-    return responsibilities
-
-def maximization_step(data, responsibilities):
-    num_clusters = responsibilities.shape[1]
-    num_samples = data.shape[0]
-    num_features = data.shape[1]
-
-   
-    weights = responsibilities.sum(axis=0) / num_samples
-
-    means = np.dot(responsibilities.T, data) / responsibilities.sum(axis=0, keepdims=True).T
-
-    covariances = []
-    for k in range(num_clusters):
-        diff = data - means[k]
-        cov_k = np.dot(responsibilities[:, k] * diff.T, diff) / responsibilities[:, k].sum()
-        covariances.append(cov_k)
-    
-    return means, covariances, weights
-
-def em_algorithm(data, num_clusters, num_iterations):
-
-    means, covariances, weights = initialize_parameters(data, num_clusters)
-
-    for _ in range(num_iterations):
-        responsibilities = expectation_step(data, means, covariances, weights)
-        means, covariances, weights = maximization_step(data, responsibilities)
-
-    return means, covariances, weights
-
+import matplotlib.pyplot as plt
+from scipy.stats import norm
 
 np.random.seed(42)
 
-data1 = np.random.multivariate_normal(mean=[3, 3], cov=[[1, 0.5], [0.5, 1]], size=100)
-data2 = np.random.multivariate_normal(mean=[8, 8], cov=[[1, -0.5], [-0.5, 1]], size=100)
-data = np.vstack([data1, data2])
+mu1, sigma1 = 5, 1
+mu2, sigma2 = 10, 2
 
-num_clusters = 2
-num_iterations = 100
+data1 = np.random.normal(mu1, sigma1, 1000)
+data2 = np.random.normal(mu2, sigma2, 1000)
+observed_data = np.concatenate([data1, data2])
 
-means, covariances, weights = em_algorithm(data, num_clusters, num_iterations)
+def initialize_parameters():
+    pi = np.random.rand()
+    mu1, mu2 = np.random.rand() * 10, np.random.rand() * 10
+    sigma1, sigma2 = np.random.rand(), np.random.rand()
+    return pi, mu1, sigma1, mu2, sigma2
 
-print("Final means:")
-print(means)
-print("\nFinal covariances:")
-print(covariances)
-print("\nFinal weights:")
-print(weights)
+def gaussian(x, mu, sigma):
+    return norm.pdf(x, mu, sigma)
+
+def expectation_step(data, pi, mu1, sigma1, mu2, sigma2):
+    prob1 = pi * gaussian(data, mu1, sigma1)
+    prob2 = (1 - pi) * gaussian(data, mu2, sigma2)
+
+    total_prob = prob1 + prob2
+    gamma1 = prob1 / total_prob
+    gamma2 = prob2 / total_prob
+
+    return gamma1, gamma2
+
+def maximization_step(data, gamma1, gamma2):
+    N1 = np.sum(gamma1)
+    N2 = np.sum(gamma2)
+
+    pi = (N1 + N2) / len(data)
+    mu1 = np.sum(gamma1 * data) / N1
+    sigma1 = np.sqrt(np.sum(gamma1 * (data - mu1)**2) / N1)
+
+    mu2 = np.sum(gamma2 * data) / N2
+    sigma2 = np.sqrt(np.sum(gamma2 * (data - mu2)**2) / N2)
+
+    return pi, mu1, sigma1, mu2, sigma2
+
+def em_algorithm(data, num_iterations):
+    pi, mu1, sigma1, mu2, sigma2 = initialize_parameters()
+
+    for _ in range(num_iterations):
+        gamma1, gamma2 = expectation_step(data, pi, mu1, sigma1, mu2, sigma2)
+        pi, mu1, sigma1, mu2, sigma2 = maximization_step(data, gamma1, gamma2)
+
+    return pi, mu1, sigma1, mu2, sigma2
+
+num_iterations = 50
+estimated_pi, estimated_mu1, estimated_sigma1, estimated_mu2, estimated_sigma2 = em_algorithm(observed_data, num_iterations)
+x = np.linspace(0, 15, 1000)
+plt.hist(observed_data, bins=30, density=True, alpha=0.5, color='gray', label='Observed Data')
+
+plt.plot(x, estimated_pi * gaussian(x, estimated_mu1, estimated_sigma1), '--', label='Estimated Distribution 1')
+plt.plot(x, (1 - estimated_pi) * gaussian(x, estimated_mu2, estimated_sigma2), '--', label='Estimated Distribution 2')
+
+plt.title('EM Algorithm for Gaussian Mixture Model')
+plt.legend()
+plt.show()
