@@ -1,0 +1,195 @@
+HackerRank - Stock Prediction
+
+from __future__ import division
+from math import sqrt
+from heapq import heappush, heappop
+
+def printTransactions(money, k, d, names, owned, prices):
+    def mean(nums):
+        return sum(nums) / len(nums)
+
+    def sd(nums):
+        average = mean(nums)
+        return sqrt(sum([(x - average) ** 2 for x in nums]) / len(nums))
+
+    def info(price):
+        cc, sigma, acc = 0, 0.0, 0
+        for i in range(1, 5):
+            if price[i] > price[i - 1]: cc += 1
+        sigma = sd(price)
+        mu = mean(price)
+        c1, c2, c3 = mean(price[0:3]), mean(price[1:4]), mean(price[2:5])
+
+        return (price[-1] - price[-2]) / price[-2]
+
+    infos = map(info, prices)
+    res = []
+
+    drop = []
+
+    for i in range(k):
+        cur_info = info(prices[i])
+        if cur_info > 0 and owned[i] > 0:
+            res.append((names[i], 'SELL', str(owned[i])))
+        elif cur_info < 0:
+            heappush(drop, (cur_info, i, names[i]))
+
+    while money > 0.0 and drop:
+        rate, idx, n = heappop(drop)
+        amount = int(money / prices[idx][-1])
+        if amount > 0:
+            res.append((n, 'BUY', str(amount)))
+            money -= amount * prices[idx][-1]
+
+    print(len(res))
+    for r in res:
+        print(' '.join(r))
+
+
+if __name__ == '__main__':
+    m, k, d = [float(i) for i in input().strip().split()]
+    k = int(k)
+    d = int(d)
+    names = []
+    owned = []
+    prices = []
+    for data in range(k):
+        temp = input().strip().split()
+        names.append(temp[0])
+        owned.append(int(temp[1]))
+        prices.append([float(i) for i in temp[2:7]])
+
+    printTransactions(m, k, d, names, owned, prices)
+     
+HackerRank - Discussion Classification
+
+
+import sys
+from sklearn.feature_extraction import text
+from sklearn import pipeline
+from sklearn import linear_model
+import numpy
+
+
+def make_model():
+    clf = pipeline.Pipeline([
+        ('vect',
+         text.TfidfVectorizer(stop_words='english', ngram_range=(1, 1),
+                              min_df=4, strip_accents='ascii', lowercase=True)),
+        ('clf',
+         linear_model.SGDClassifier(class_weight='balanced'))
+    ])
+    return clf
+
+
+def run():
+    known = [('Business means risk!', 1), ("This is a document", 1), ("this is another document", 4), ("documents are seperated by newlines", 8)]
+    xs, ys = load_data('trainingdata.txt')
+    mdl = make_model()
+    mdl.fit(xs, ys)
+    txs = list(line for line in sys.stdin)[1:]
+    for y, x in zip(mdl.predict(txs), txs):
+        for pattern, clazz in known:
+            if pattern in x:
+                print(clazz)
+                break
+        else:
+            print(y)
+
+
+def load_data(filename):
+    with open(filename, 'r') as data_file:
+        sz = int(data_file.readline())
+        xs = numpy.zeros(sz, dtype=numpy.dtype(object))
+        ys = numpy.zeros(sz, dtype=numpy.dtype(int))
+        for i, line in enumerate(data_file):
+            idx = line.index(' ')
+            if idx == -1:
+                raise ValueError('invalid input file')
+            clazz = int(line[:idx])
+            words = line[idx+1:]
+            xs[i] = words
+            ys[i] = clazz
+    return xs, ys
+
+
+if __name__ == '__main__':
+    run()
+     
+HackerRank - Stock Exchange
+
+
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.model_selection import train_test_split
+from sklearn.naive_bayes import MultinomialNB
+
+with open('training.json') as file:
+    lines = file.readlines()
+lines = iter(lines)
+
+N = int(next(lines))
+
+X_train, classes = [], []
+for _ in range(N):
+    line = next(lines)
+    d = eval(line)
+    X_train.append(d['question'])
+    classes.append(d['topic'].strip())
+
+classes_to_ix = {c: i for i, c in enumerate(set(classes))}
+ix_to_classes = {i: c for c, i in classes_to_ix.items()}
+y_train = [classes_to_ix[c] for c in classes]
+
+vectorizer = TfidfVectorizer(sublinear_tf=True, max_df=0.5, stop_words="english")
+X_train = vectorizer.fit_transform(X_train)
+
+clf = MultinomialNB(alpha=0.1)
+clf.fit(X_train, y_train)
+
+P = int(input())
+X_pred = []
+for _ in range(P):
+    line = input()
+    d = eval(line)
+    X_pred.append(d['question'])
+
+X_pred = vectorizer.transform(X_pred)
+y_pred = [ix_to_classes[i] for i in clf.predict(X_pred)]
+print('\n'.join(y_pred))
+     
+HackerRank - Correlation and Regression
+
+
+import math as m
+
+def mean(data):
+    return sum(data) / len(data)
+
+def var(data):
+    sum_var = 0
+    for i in range(len(data)):
+        sum_var = sum_var + (data[i] - mean(data)) ** 2
+    return sum_var
+
+def cov(dt1, dt2):
+    sum_cov = 0
+    for i in range(len(dt1)):
+        sum_cov += (dt1[i] - mean(dt1)) * (dt2[i] - mean(dt2))
+    return sum_cov
+
+physics = [15.0, 12.0, 8.0, 8.0, 7.0, 7.0, 7.0, 6.0, 5.0, 3.0]
+history = [10.0, 25.0, 17.0, 11.0, 13.0, 17.0, 20.0, 13.0, 9.0, 15.0]
+
+mean_physics = mean(physics)
+mean_history = mean(history)
+
+var_physics = var(physics)
+var_history = var(history)
+
+covariance = cov(physics, history)
+std_physics = m.sqrt(var_physics)
+std_history = m.sqrt(var_history)
+
+r = covariance / (std_physics * std_history)
+print(round(r, 3))
+     
